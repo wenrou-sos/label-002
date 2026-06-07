@@ -29,7 +29,7 @@ const server = fastify({
 async function ensureDatabaseAndTables() {
   try {
     server.log.info('检查数据库连接...')
-    const initPool = createTempPool(true)
+    const initPool = createPool({ withoutDatabase: true, isGlobal: false })
     await initPool.query('SELECT 1')
     server.log.info('✓ 数据库连接成功')
 

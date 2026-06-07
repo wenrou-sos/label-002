@@ -81,6 +81,7 @@ export const useUserStore = defineStore('user', () => {
     register,
     fetchProfile,
     updateProfile,
+    changePassword,
     logout
   }
 })

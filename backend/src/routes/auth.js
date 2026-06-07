@@ -187,4 +187,44 @@ export default async function authRoutes(fastify, options) {
       data: updatedUser
     })
   })
+
+  fastify.put('/api/auth/password', {
+    preHandler: [authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['oldPassword', 'newPassword'],
+        properties: {
+          oldPassword: { type: 'string', minLength: 6, maxLength: 50 },
+          newPassword: { type: 'string', minLength: 6, maxLength: 50 }
+        }
+      }
+    }
+  }, async function (request, reply) {
+    const userId = request.user.id
+    const { oldPassword, newPassword } = request.body
+
+    const [user] = await query('SELECT password FROM users WHERE id = ?', [userId])
+    if (!user) {
+      return reply.status(404).send({ code: 404, message: '用户不存在', data: null })
+    }
+
+    const isValidPassword = await bcrypt.compare(oldPassword, user.password)
+    if (!isValidPassword) {
+      return reply.status(400).send({ code: 400, message: '原密码错误', data: null })
+    }
+
+    if (oldPassword === newPassword) {
+      return reply.status(400).send({ code: 400, message: '新密码不能与原密码相同', data: null })
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10)
+    await query('UPDATE users SET password = ? WHERE id = ?', [hashedNewPassword, userId])
+
+    return reply.send({
+      code: 200,
+      message: '密码修改成功',
+      data: null
+    })
+  })
 }

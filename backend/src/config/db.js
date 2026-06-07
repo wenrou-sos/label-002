@@ -42,19 +42,16 @@ const dbConfig = {
 
 let pool = null
 
-export function createPool(withoutDatabase = false) {
+export function createPool(options = {}) {
+  const { withoutDatabase = false, isGlobal = true } = options
   const config = withoutDatabase 
     ? { ...dbConfig, database: undefined }
     : dbConfig
-  pool = mysql.createPool(config)
-  return pool
-}
-
-export function createTempPool(withoutDatabase = false) {
-  const config = withoutDatabase 
-    ? { ...dbConfig, database: undefined }
-    : dbConfig
-  return mysql.createPool(config)
+  const newPool = mysql.createPool(config)
+  if (isGlobal) {
+    pool = newPool
+  }
+  return newPool
 }
 
 export function getPool() {

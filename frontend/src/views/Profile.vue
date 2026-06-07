@@ -102,7 +102,7 @@
               </template>
               修改密码
               <template #suffix>
-                <n-button text type="primary">修改</n-button>
+                <n-button text type="primary" @click="showPasswordModal = true">修改</n-button>
               </template>
             </n-list-item>
             <n-list-item>
@@ -127,6 +127,62 @@
         </n-card>
       </n-col>
     </n-row>
+
+    <n-modal
+      v-model:show="showPasswordModal"
+      preset="card"
+      title="修改密码"
+      :mask-closable="false"
+      style="width: 500px"
+    >
+      <n-form
+        ref="passwordFormRef"
+        :model="passwordForm"
+        :rules="passwordRules"
+        label-placement="top"
+      >
+        <n-form-item label="原密码" path="oldPassword">
+          <n-input
+            v-model:value="passwordForm.oldPassword"
+            type="password"
+            placeholder="请输入原密码"
+            show-password-on="click"
+            size="large"
+          />
+        </n-form-item>
+        <n-form-item label="新密码" path="newPassword">
+          <n-input
+            v-model:value="passwordForm.newPassword"
+            type="password"
+            placeholder="请输入新密码（6-50位）"
+            show-password-on="click"
+            size="large"
+          />
+        </n-form-item>
+        <n-form-item label="确认新密码" path="confirmPassword">
+          <n-input
+            v-model:value="passwordForm.confirmPassword"
+            type="password"
+            placeholder="请再次输入新密码"
+            show-password-on="click"
+            size="large"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button size="large" @click="closePasswordModal">取消</n-button>
+          <n-button
+            type="primary"
+            size="large"
+            :loading="changingPassword"
+            @click="handleChangePassword"
+          >
+            确认修改
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -144,8 +200,11 @@ const orderStore = useOrderStore()
 const petStore = usePetStore()
 
 const formRef = ref(null)
+const passwordFormRef = ref(null)
 const saving = ref(false)
+const changingPassword = ref(false)
 const notificationsEnabled = ref(true)
+const showPasswordModal = ref(false)
 
 const form = reactive({
   name: '',
@@ -155,6 +214,19 @@ const form = reactive({
   bio: ''
 })
 
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+function validateConfirmPassword(rule, value) {
+  if (value !== passwordForm.newPassword) {
+    return new Error('两次输入的密码不一致')
+  }
+  return true
+}
+
 const rules = {
   name: [
     { required: true, message: '请输入姓名', trigger: 'blur' },
@@ -163,6 +235,20 @@ const rules = {
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
+  ]
+}
+
+const passwordRules = {
+  oldPassword: [
+    { required: true, message: '请输入原密码', trigger: 'blur' }
+  ],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 50, message: '密码长度为6-50个字符', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认新密码', trigger: 'blur' },
+    { validator: validateConfirmPassword, trigger: 'blur' }
   ]
 }
 
@@ -201,6 +287,34 @@ async function handleSubmit() {
     if (error.errors) return
   } finally {
     saving.value = false
+  }
+}
+
+function resetPasswordForm() {
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+  passwordFormRef.value?.restoreValidation()
+}
+
+function closePasswordModal() {
+  resetPasswordForm()
+  showPasswordModal.value = false
+}
+
+async function handleChangePassword() {
+  try {
+    await passwordFormRef.value.validate()
+    changingPassword.value = true
+    await userStore.changePassword(passwordForm.oldPassword, passwordForm.newPassword)
+    message.success('密码修改成功，请重新登录')
+    closePasswordModal()
+    userStore.logout()
+    window.location.href = '/login'
+  } catch (error) {
+    if (error.errors) return
+  } finally {
+    changingPassword.value = false
   }
 }
 
